@@ -4,4 +4,4 @@ project(EventSimulator)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 set(SOURCE_FILES main.cpp)
-add_executable(EventSimulator ${SOURCE_FILES})
+add_executable(EventSimulator ${SOURCE_FILES} Exception.cpp Exception.h Entry.cpp Entry.h Event.cpp Event.h)
