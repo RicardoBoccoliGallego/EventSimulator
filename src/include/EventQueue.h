@@ -9,14 +9,13 @@
 #define EVENTQUEUE_H_
 
 #include <list>
-
 #include "Event.h"
 
 class EventQueue {
 public:
 	EventQueue();
 	Event& NextEvent();
-	void InsertEvent(Event &&e);
+	void InsertEvent(Event e);
 	void PrintEventQueue() const;
 
 private:

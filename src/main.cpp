@@ -36,7 +36,6 @@ int main(int nargs, char * argv[]) {
 	}
 	std::cout << "Initializing simulator..." << std::endl;
 
-
 	std::cout << "END" << std::endl;
 	return 0;
 }

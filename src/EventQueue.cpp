@@ -5,11 +5,21 @@
  *      Author: ricardo
  */
 
-#include "EventQueue.h"
-
+#include "include/EventQueue.h"
 
 EventQueue::EventQueue() {
 	// TODO Auto-generated constructor stub
+
+}
+
+Event& EventQueue::NextEvent() {
+	return *_current_position;
+}
+
+void EventQueue::InsertEvent(Event e) {
+
+}
+void EventQueue::PrintEventQueue() const {
 
 }
 
