@@ -14,10 +14,11 @@
 class EventQueue {
 public:
 	EventQueue(int64_t simulation_start, int64_t simulation_end);
-	const Event& NextEvent();
+	Event& NextEvent();
 	void AdvanceQueue();
 	void InsertEvent(Event e);
 	void PrintEventQueue() const;
+	bool LastEvent() const;
 
 private:
 	std::list<Event>::iterator _current_position;

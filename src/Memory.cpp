@@ -5,32 +5,42 @@
  *      Author: ricardo
  */
 
-#include "Memory.h"
-
+#include "include/Memory.h"
+#include "include/Debug.h"
 Memory::Memory(int64_t size)
-: _memory_size(size), _used_size(0)
+: _memory_size(size), _remaining_size(size)
 {
+	DEBUG("Memory Initialized: " << size << " bytes");
 }
 
-void Memory::RequestMemory(const Job* job) {
-	if (_memory_size >= job->NeededMemory()) {
-		_memory_size -= job->NeededMemory();
-		//_alocated_jobs.insert(job);
+void Memory::Request(Job* job, EventQueue& events, int64_t& curr_time) {
+	if (_remaining_size >= job->Size()) {
+		_remaining_size -= job->Size();
+		_alocated_jobs.insert(job);
+		curr_time += OVERHEAD;
+		events.InsertEvent(Event(EventType::UseMemory, curr_time, job));
 	}
-//	else
-		//_jobs_queue.push_back(job);
+	else
+		_queue_list.push_back(job);
 }
 
-bool Memory::Release(const Job& job, std::list<const Job&>& new_allocated_jobs) {
-	_used_size -= job.NeededMemory()
-}
-void Memory::ReleaseMemory(const Job* job) {
-	if (true) {
-		_memory_size += job->NeededMemory();
-	//	if (!_jobs_queue.empty() && _jobs_queue.front()->NeededMemory() <= _memory_size) {
-		//	_alocated_jobs.insert(*_jobs_queue.front());
-	//		_jobs_queue.pop_front();
-//		}
-	//	_alocated_jobs.erase(job);
+void Memory::Release(Job* job, EventQueue& events, int64_t& curr_time) {
+	if (_alocated_jobs.find(job) ==  _alocated_jobs.end())
+		return;
+	//Removes from allocated jobs and starts other jobs
+	_alocated_jobs.erase(job);
+	_remaining_size += job->Size();
+	while (!_queue_list.empty()) {
+		Job* start_job = _queue_list.front();
+		if (_remaining_size >=  start_job->Size()) {
+			_queue_list.pop_front();
+			_alocated_jobs.insert(start_job);
+			_remaining_size -= start_job->Size();
+			curr_time += OVERHEAD;
+			events.InsertEvent(Event(EventType::UseMemory, curr_time, start_job));
+		}
+		else
+			break;
 	}
 }
+

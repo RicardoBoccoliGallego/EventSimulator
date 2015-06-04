@@ -14,6 +14,7 @@
 #include <iostream>
 
 #include "Job.h"
+#include "EventQueue.h"
 
 /**
  * Class to represent a simple segmented memory
@@ -24,20 +25,21 @@ public:
 	/**
 	 * Requests memory. Return true if it was able to get
 	 */
-	bool Request(const Job& job);
+	void Request(Job* job, EventQueue& events, int64_t& curr_time);
 
 	/**
 	 * Releases memory of job
 	 * returns if any new job was allocated
 	 * new_allocated_jobs contains the list of new allocated jobs
 	 */
-	bool Release(const Job& job, std::list<const Job&>& new_allocated_jobs);
+	void Release(Job* job, EventQueue& events, int64_t& curr_time);
 
 private:
+	const static int64_t OVERHEAD = 100;
 	const int64_t _memory_size;
-	std::list<const Job&> _jobs_queue;
-	std::set<const Job&> _alocated_jobs;
-	int64_t _used_size;
+	std::list<Job*> _queue_list;
+	std::set<Job*> _alocated_jobs;
+	int64_t _remaining_size;
 };
 
 

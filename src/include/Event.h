@@ -22,10 +22,19 @@ enum class EventType : int {
 	RequestCPU,
 	ReleaseCPU,
 	RequestIO,
-	ReleaseIO
+	ReleaseIO,
+	UseMemory,
+	UseCPU,
+	UseIO
 };
 
-std::string EventDescriptions[] ={"BeginSimulation",
+enum class ActionType : int {
+	None
+};
+
+
+const std::string EventDescriptions[] = {
+		"BeginSimulation",
 		"EndSimulation",
 		"BeginJob",
 		"EndJob",
@@ -34,34 +43,44 @@ std::string EventDescriptions[] ={"BeginSimulation",
 		"RequestCPU",
 		"ReleaseCPU",
 		"RequestIO",
-		"ReleaseIO"
+		"ReleaseIO",
+		"UseMemory",
+		"UseCPU",
+		"UseIO"
 };
 
-std::string EventRoutines[] ={
-		"?",
-		"?",
-		"?",
-		"?",
+const std::string EventRoutines[] = {
+		"Job::ReadJobsFile",
+		"EventQueue::InsertEvent",
+		"None",
+		"None",
 		"Memory::Request",
 		"Memory::Release",
 		"Processor::Request",
 		"Processor::Release",
 		"IO::Request",
-		"IO::Release"
+		"IO::Release",
+		"EventQueue::InsertEvent",
+		"EventQueue::InsertEvent",
+		"EventQueue::InsertEvent"
 };
 
 class Event {
 public:
-	Event(EventType event_type, int64_t real_time = -1, Job* job = nullptr);
+	Event(EventType event_type, int64_t real_time, Job* job);
+
 
 	int64_t Time() const;
 	EventType Type() const;
 	Job* EventJob() const;
+	const std::string Action() const;
 
 private:
+
 	EventType _event_type;
 	int64_t _real_time;//Real time
 	Job* _job;
+	std::string _action = "";
 
 };
 

@@ -8,9 +8,11 @@
 #ifndef JOB_H_
 #define JOB_H_
 
-#include <vector>
 #include <cinttypes>
 #include <string>
+#include <set>
+
+class EventQueue;
 
 class Job {
 
@@ -22,9 +24,21 @@ public:
 	int64_t Size() const;
 	int64_t NIOs() const;
 
+	int64_t MissingTime() const;
+	int64_t MissingIOs() const;
+	void AddExecutedTime(int64_t time);
+	void DoIO() const;
+	void FinishIO();
+	int64_t ReleaseCPUTime() const;
+
+	bool operator<(const Job& sec) const;
+
+	static void ReadJobsFile(std::string filename, std::set<Job>& job_list, EventQueue& events);
 
 private:
 	/* Const values */
+	static int64_t n_jobs;
+	const int64_t _id;
 	const std::string _name;
 	const int64_t _execution_time;
 	const int64_t _size;
@@ -34,9 +48,12 @@ private:
 	int64_t _executed_time;
 	//Time before the job ask for I/O or stops
 	int64_t _inter_request_time;
+	//Number of IOs done
+	int64_t _done_ios;
 
 
 
 };
 
 #endif /* JOB_H_ */
+
