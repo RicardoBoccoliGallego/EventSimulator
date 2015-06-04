@@ -13,8 +13,9 @@
 
 class EventQueue {
 public:
-	EventQueue();
-	Event& NextEvent();
+	EventQueue(int64_t simulation_start, int64_t simulation_end);
+	const Event& NextEvent();
+	void AdvanceQueue();
 	void InsertEvent(Event e);
 	void PrintEventQueue() const;
 

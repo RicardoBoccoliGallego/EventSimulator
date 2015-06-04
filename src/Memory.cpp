@@ -5,10 +5,10 @@
  *      Author: ricardo
  */
 
-#include "include/Memory.h"
+#include "Memory.h"
 
 Memory::Memory(int64_t size)
-: _memory_size(size)
+: _memory_size(size), _used_size(0)
 {
 }
 
@@ -21,6 +21,9 @@ void Memory::RequestMemory(const Job* job) {
 		//_jobs_queue.push_back(job);
 }
 
+bool Memory::Release(const Job& job, std::list<const Job&>& new_allocated_jobs) {
+	_used_size -= job.NeededMemory()
+}
 void Memory::ReleaseMemory(const Job* job) {
 	if (true) {
 		_memory_size += job->NeededMemory();
