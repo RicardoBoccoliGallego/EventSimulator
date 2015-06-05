@@ -58,8 +58,8 @@ const std::string EventRoutines[] = {
 		"Memory::Release",
 		"Processor::Request",
 		"Processor::Release",
-		"IO::Request",
-		"IO::Release",
+		"DevicePool::Request",
+		"DevicePool::Release",
 		"EventQueue::InsertEvent",
 		"EventQueue::InsertEvent",
 		"EventQueue::InsertEvent"

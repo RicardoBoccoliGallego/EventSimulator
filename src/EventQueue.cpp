@@ -21,7 +21,8 @@ Event& EventQueue::NextEvent() {
 }
 
 void EventQueue::AdvanceQueue() {
-	_current_position++;
+	if (_current_position != _events.end())
+		_current_position++;
 }
 
 void EventQueue::InsertEvent(Event e) {
@@ -37,20 +38,35 @@ void EventQueue::InsertEvent(Event e) {
 }
 
 void EventQueue::PrintEventQueue() const {
-	std::cout << std::setw(10) << "Time" << std::setw(20) << "Event Type"
-			<< std::setw(30) << "Program" << std::setw(30) << "Action"
-			<< std::setw(40) << "Result" << std::endl;;
+
+	// tell cout to use our new locale.
+	std::cout << std::setw(20) << "Time" << std::setw(20) << "Event Type"
+			<< std::setw(20) << "Program" << std::setw(30) << "Action"
+			<< std::setw(50) << "Result" << std::endl;;
+
+
 	for (auto it : _events) {
-		std::cout  << std::setw(8) << it.Time()  << "ns" << std::setw(20)
-				<< EventDescriptions[static_cast<int>(it.Type())] << std::setw(30);
+		std::string time = std::string(SSTR(it.Time()));
+		if (time.length() > 3)
+			time.insert(time.length() - 3, " ");
+		if (time.length() > 7)
+					time.insert(time.length() - 7, " ");
+		if (time.length() > 11)
+							time.insert(time.length() - 11, " ");
+		std::cout << std::setw(17) << std::fixed << time  << "ns" << std::setw(20)
+				<< EventDescriptions[static_cast<int>(it.Type())] << std::setw(20);
 		if (it.EventJob() != nullptr)
 			std::cout << it.EventJob()->Name();
 		else
 			std::cout << " ";
 		std::cout << std::setw(30) << EventRoutines[static_cast<int>(it.Type())]
-				<< std::setw(40) << it.Action() << std::endl;
+				<< std::setw(50) << it.Action() << std::endl;
 	}
 
+}
+
+void EventQueue::GoToEnd() {
+	_current_position = _events.end();
 }
 
 bool EventQueue::LastEvent() const {

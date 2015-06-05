@@ -7,10 +7,9 @@
 
 
 #include "include/Event.h"
+#include "include/DevicePool.h"
+#include "include/Debug.h"
 #include <sstream>
-#define SSTR( x ) dynamic_cast< std::ostringstream & >( \
-        ( std::ostringstream() << std::dec << x ) ).str()
-
 
 Event::Event(EventType event_type, int64_t real_time, Job* job)
 	: _event_type(event_type), _real_time(real_time), _job(job)
@@ -44,7 +43,7 @@ Event::Event(EventType event_type, int64_t real_time, Job* job)
 				_action = job->Name() + " is waiting for I/O";
 				break;
 		case EventType::UseIO:
-			_action = job->Name() + " does I/O operation (" + SSTR(job->NIOs() - job->MissingIOs() + 1) + "/" + SSTR(job->NIOs()) + ")";
+			_action = job->Name() + " uses " + DeviceNames[static_cast<int>(job->NextIOType())] + " doing I/O operation (" + SSTR(job->NIOs() - job->MissingIOs() + 1) + "/" + SSTR(job->NIOs()) + ")";
 			break;
 		case EventType::ReleaseIO:
 			_action = job->Name() + " finished I/O";

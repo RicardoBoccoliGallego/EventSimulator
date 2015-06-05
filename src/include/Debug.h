@@ -8,6 +8,12 @@
 #ifndef INCLUDE_DEBUG_H_
 #define INCLUDE_DEBUG_H_
 #include <iostream>
+#include <sstream>
+
+#define SSTR( x ) dynamic_cast< std::ostringstream & >( \
+        ( std::ostringstream() << std::dec << x ) ).str()
+
+
 #ifndef NDEBUG
 #  define DEBUG(x)  std::cout << "[DEBUG] " <<  x << std::endl
 #else

@@ -15,7 +15,7 @@
 #include "include/Debug.h"
 #include "include/Memory.h"
 #include "include/Processor.h"
-
+#include "include/DevicePool.h"
 
 
 using namespace std;
@@ -64,8 +64,16 @@ int main(int nargs, char * argv[]) {
 
 	DEBUG("Initializing simulator...");
 
-	Memory memory((int64_t) 2 * 1024); //2GB memory
+	//Computer components
+	Memory memory((int64_t) 10 * 1024 * 1024); //10MiB memory
 	Processor cpu;
+	// Three device pools (disk, printer and reader)
+	DevicePool devices[] = {
+			DevicePool(DeviceType::Disk, 15563*1000, 1),
+			DevicePool(DeviceType::Printer, 2*1000*1000*1000, 2),
+			DevicePool(DeviceType::Reader, 100*1000*1000, 2)
+	};
+
 	EventQueue events(start, end);
 	current_time = 0;
 	while (!events.LastEvent()) {
@@ -75,13 +83,14 @@ int main(int nargs, char * argv[]) {
 		if (current_event.Time() > current_time) {
 			current_time = current_event.Time();
 		}
-
+		DEBUG("Time " << current_time << " event: " << EventDescriptions[(int)current_event.Type()]);
 		switch (current_event.Type()) {
 			case EventType::BeginSimulation:
 				Job::ReadJobsFile(jobs_file, jobs, events);
 				current_time = start;
 				break;
 			case EventType::EndSimulation:
+				events.GoToEnd();
 				current_time = end;
 				break;
 			case EventType::BeginJob:
@@ -89,8 +98,6 @@ int main(int nargs, char * argv[]) {
 				events.InsertEvent(Event(EventType::RequestMemory, current_time, current_job));
 				break;
 			case EventType::EndJob:
-				//Schedule Memory release
-
 				break;
 			case EventType::RequestMemory:
 				memory.Request(current_job, events, current_time);
@@ -118,21 +125,26 @@ int main(int nargs, char * argv[]) {
 				//Mark execution time
 				current_job->AddExecutedTime(executed_time);
 				//Schedule end or I/O
-				if (current_job->MissingTime() == (int64_t) 0)
+				if (current_job->MissingTime() == 0 && current_job->MissingIOs() == 0)
 					events.InsertEvent(Event(EventType::ReleaseMemory, current_time, current_job));
 				else
 					events.InsertEvent(Event(EventType::RequestIO, current_time, current_job));
 				break;
 			}
-			case EventType::RequestIO:
-				//TODO: Really request I/O
-				events.InsertEvent(Event(EventType::UseIO, current_time, current_job));
+			case EventType::RequestIO: {
+				//Chooses device and requests
+				devices[static_cast<int>(current_job->NextIOType())].Request(current_job, events, current_time);
 				break;
+			}
 			case EventType::UseIO:
-				events.InsertEvent(Event(EventType::RequestCPU, current_time, current_job));
+				//Schedule I/O end
+				events.InsertEvent(Event(EventType::ReleaseIO, current_time + devices[static_cast<int>(current_job->NextIOType())].IOTime(), current_job));
 				break;
 			case EventType::ReleaseIO:
-				if (current_job->MissingTime() == 0)
+
+				devices[static_cast<int>(current_job->NextIOType())].Release(current_job, events, current_time);
+				current_job->FinishIO();
+				if (current_job->MissingTime() == 0 && current_job->MissingIOs() == 0)
 					events.InsertEvent(Event(EventType::ReleaseMemory, current_time, current_job));
 				else
 					events.InsertEvent(Event(EventType::RequestCPU, current_time, current_job));

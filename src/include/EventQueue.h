@@ -19,6 +19,7 @@ public:
 	void InsertEvent(Event e);
 	void PrintEventQueue() const;
 	bool LastEvent() const;
+	void GoToEnd();
 
 private:
 	std::list<Event>::iterator _current_position;

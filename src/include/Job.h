@@ -13,7 +13,7 @@
 #include <set>
 
 class EventQueue;
-
+enum class DeviceType;
 class Job {
 
 public:
@@ -26,8 +26,10 @@ public:
 
 	int64_t MissingTime() const;
 	int64_t MissingIOs() const;
+	int64_t DoneIOs() const;
+	DeviceType NextIOType() const;
+
 	void AddExecutedTime(int64_t time);
-	void DoIO() const;
 	void FinishIO();
 	int64_t ReleaseCPUTime() const;
 
@@ -44,6 +46,7 @@ private:
 	const int64_t _size;
 	const int64_t _nios;
 
+	DeviceType _next_io;
 	//Time the job was executed
 	int64_t _executed_time;
 	//Time before the job ask for I/O or stops
