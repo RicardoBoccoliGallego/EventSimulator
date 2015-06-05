@@ -66,7 +66,7 @@ int main(int nargs, char * argv[]) {
 
 	//Computer components
 	Memory memory((int64_t) 10 * 1024 * 1024); //10MiB memory
-	Processor cpu;
+	Processor cpu(3);
 	// Three device pools (disk, printer and reader)
 	DevicePool devices[] = {
 			DevicePool(DeviceType::Disk, 15563*1000, 1),
@@ -113,17 +113,14 @@ int main(int nargs, char * argv[]) {
 				break;
 			case EventType::RequestCPU:
 				//Request CPU
-				cpu.Request(current_event.EventJob(), events, current_time);
+				cpu.Request(current_event.EventJob(), events, current_time, current_job->ReleaseCPUTime());
 				break;
 			case EventType::UseCPU:
 				//Schedule Release CPU
-				events.InsertEvent(Event(EventType::ReleaseCPU, current_time + current_job->ReleaseCPUTime(), current_job));
+				//events.InsertEvent(Event(EventType::ReleaseCPU, current_time + , current_job));
 				break;
 			case EventType::ReleaseCPU: {
-				//Release CPU
-				int64_t executed_time = cpu.Release(current_job, events, current_time);
-				//Mark execution time
-				current_job->AddExecutedTime(executed_time);
+				cpu.Release(current_job, events, current_time);
 				//Schedule end or I/O
 				if (current_job->MissingTime() == 0 && current_job->MissingIOs() == 0)
 					events.InsertEvent(Event(EventType::ReleaseMemory, current_time, current_job));
@@ -148,6 +145,13 @@ int main(int nargs, char * argv[]) {
 					events.InsertEvent(Event(EventType::ReleaseMemory, current_time, current_job));
 				else
 					events.InsertEvent(Event(EventType::RequestCPU, current_time, current_job));
+				break;
+
+			case EventType::BeginTimeSlice:
+				cpu.BeginTimeslice(events, current_time);
+				break;
+			case EventType::EndTimeSlice:
+				cpu.EndTimeslice(events, current_time);
 				break;
 		}
 

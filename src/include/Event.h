@@ -25,7 +25,9 @@ enum class EventType : int {
 	ReleaseIO,
 	UseMemory,
 	UseCPU,
-	UseIO
+	UseIO,
+	BeginTimeSlice,
+	EndTimeSlice
 };
 
 enum class ActionType : int {
@@ -46,7 +48,9 @@ const std::string EventDescriptions[] = {
 		"ReleaseIO",
 		"UseMemory",
 		"UseCPU",
-		"UseIO"
+		"UseIO",
+		"BeginTimeSlice",
+		"EndTimeSlice"
 };
 
 const std::string EventRoutines[] = {
@@ -62,7 +66,9 @@ const std::string EventRoutines[] = {
 		"DevicePool::Release",
 		"EventQueue::InsertEvent",
 		"EventQueue::InsertEvent",
-		"EventQueue::InsertEvent"
+		"EventQueue::InsertEvent",
+		"Processor::BeginTimeslice",
+		"Processor::EndTimeslice"
 };
 
 class Event {
@@ -74,6 +80,7 @@ public:
 	EventType Type() const;
 	Job* EventJob() const;
 	const std::string Action() const;
+	void AddDelay(int64_t delay);
 
 private:
 

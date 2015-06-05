@@ -17,8 +17,8 @@
 #include "include/DevicePool.h"
 
 int64_t Job::n_jobs = 0;
-Job::Job(const std::string& name, int64_t execution_time, int64_t size, int64_t nios):
-		_id(++n_jobs), _name(name), _execution_time(execution_time), _size(size), _nios(nios) {
+Job::Job(const std::string& name, int64_t execution_time, int64_t size, int64_t nios, int64_t priority):
+		_id(++n_jobs), _name(name), _execution_time(execution_time), _size(size), _nios(nios), _priority(priority) {
 
 	_executed_time = 0;
 	_inter_request_time = _execution_time / (_nios+1);
@@ -40,6 +40,10 @@ int64_t Job::Size() const {
 }
 int64_t Job::NIOs() const {
 	return _nios;
+}
+
+int64_t Job::Priority() const {
+	return _priority;
 }
 
 int64_t Job::MissingTime() const {
@@ -101,8 +105,9 @@ void Job::ReadJobsFile(std::string filename, std::set<Job>& job_list, EventQueue
 		int64_t size;
 		int64_t nios;
 		int64_t arrive_time;
-		while ( file >> name >> execution_time >> size >> nios >> arrive_time) {
-			auto it = job_list.emplace(name, execution_time, size, nios);
+		int64_t priority;
+		while ( file >> name >> execution_time >> size >> nios >> arrive_time >> priority) {
+			auto it = job_list.emplace(name, execution_time, size, nios, priority);
 			events.InsertEvent(Event(EventType::BeginJob, arrive_time, const_cast<Job*>(&(*it.first))));
 		}
 	}

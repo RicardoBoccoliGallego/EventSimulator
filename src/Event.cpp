@@ -25,7 +25,7 @@ Event::Event(EventType event_type, int64_t real_time, Job* job)
 			_action = job->Name() + " is waiting to run";
 			break;
 		case EventType::UseCPU:
-			_action = job->Name() + " uses the CPU (" + SSTR(job->ExecutionTime() - job->MissingTime() + job->ReleaseCPUTime()) + "ns/" + SSTR(job->ExecutionTime()) + "ns)";
+			_action = job->Name() + " will use the CPU (" + SSTR(job->ExecutionTime() - job->MissingTime() + job->ReleaseCPUTime()) + "ns/" + SSTR(job->ExecutionTime()) + "ns)";
 			break;
 		case EventType::ReleaseCPU:
 			_action = job->Name() + " stop running";
@@ -40,14 +40,20 @@ Event::Event(EventType event_type, int64_t real_time, Job* job)
 			_action = job->Name() + " deallocated";
 			break;
 		case EventType::RequestIO:
-				_action = job->Name() + " is waiting for I/O";
-				break;
+			_action = job->Name() + " is waiting for I/O";
+			break;
 		case EventType::UseIO:
 			_action = job->Name() + " uses " + DeviceNames[static_cast<int>(job->NextIOType())] + " doing I/O operation (" + SSTR(job->NIOs() - job->MissingIOs() + 1) + "/" + SSTR(job->NIOs()) + ")";
 			break;
 		case EventType::ReleaseIO:
 			_action = job->Name() + " finished I/O";
 			break;
+		case EventType::BeginTimeSlice:
+			_action = job->Name() + " will run for its timeslice ";
+			break;
+		case EventType::EndTimeSlice:
+			_action = job->Name() + " finished its timeslice ";
+		break;
 		default:
 			_action = "-";
 		break;
@@ -70,4 +76,8 @@ Job* Event::EventJob() const {
 
 const std::string Event::Action() const {
 	return _action;
+}
+
+void Event::AddDelay(int64_t delay) {
+	_real_time += delay;
 }

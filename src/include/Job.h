@@ -17,7 +17,7 @@ enum class DeviceType;
 class Job {
 
 public:
-	Job(const std::string& name, int64_t execution_time, int64_t size, int64_t nios);
+	Job(const std::string& name, int64_t execution_time, int64_t size, int64_t nios, int64_t priority);
 
 	std::string Name() const;
 	int64_t ExecutionTime() const;
@@ -28,6 +28,7 @@ public:
 	int64_t MissingIOs() const;
 	int64_t DoneIOs() const;
 	DeviceType NextIOType() const;
+	int64_t Priority() const;
 
 	void AddExecutedTime(int64_t time);
 	void FinishIO();
@@ -45,6 +46,7 @@ private:
 	const int64_t _execution_time;
 	const int64_t _size;
 	const int64_t _nios;
+	const int64_t _priority;
 
 	DeviceType _next_io;
 	//Time the job was executed

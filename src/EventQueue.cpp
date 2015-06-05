@@ -29,7 +29,7 @@ void EventQueue::InsertEvent(Event e) {
 	std::list<Event>::iterator walker = _current_position;
 	//Shouldn't happen
 	if (e.Time() < walker->Time()) {
-		DEBUG("Unexpected Situation" << __LINE__);
+		DEBUG("InsertEvent: Unexpected Situation " << EventDescriptions[static_cast<int>(e.Type())]);
 		return;
 	}
 	while (e.Time() >= walker->Time() && walker != _events.end())
@@ -71,5 +71,31 @@ void EventQueue::GoToEnd() {
 
 bool EventQueue::LastEvent() const {
 	return _current_position == _events.end();
+}
+
+void EventQueue::DelayNextEvent(Job* job, EventType type, int64_t delay) {
+	DEBUG("Delay Next Event");
+	auto ev = NextEvent(job, type);
+	ev->AddDelay(delay);
+	//Move element to the right position
+	std::list<Event>::iterator walker = ev;
+	while (ev->Time() >= walker->Time() && walker != _events.end())
+		walker++;
+	_events.splice(walker, _events, ev);
+}
+
+void EventQueue::CancelNextEvent(Job* job, EventType type) {
+	auto ev = NextEvent(job, type);
+	if (ev != _events.end())
+		_events.erase(ev);
+}
+
+std::list<Event>::iterator EventQueue::NextEvent(Job* job, EventType type) {
+	std::list<Event>::iterator walker = _current_position;
+
+	//Walk
+	while ((walker->Type() != type  || walker->EventJob() != job) && walker != _events.end())
+			walker++;
+	return walker;
 }
 
