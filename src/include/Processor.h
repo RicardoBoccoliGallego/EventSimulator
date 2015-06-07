@@ -35,7 +35,7 @@ public:
 	void EndTimeslice(EventQueue& events, int64_t& curr_time);
 
 	Job* Running();
-	const static int64_t TIMESLICE = 10 * 1000; /* 10 us of time slice */
+	const static int64_t TIMESLICE; /* 10 us of time slice */
 
 private:
 	/* Add and remove job from executing jobs */

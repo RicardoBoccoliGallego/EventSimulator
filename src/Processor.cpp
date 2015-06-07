@@ -11,6 +11,8 @@
 
 #include "include/Debug.h"
 
+
+const int64_t Processor::TIMESLICE = 10 * 1000;
 Processor::Processor(int64_t max_programs, int64_t ncores) : _max_programs(max_programs), _ncores(ncores) {
 	_running_job = _processing_jobs.end();
 	_to_run_job = _processing_jobs.end();
