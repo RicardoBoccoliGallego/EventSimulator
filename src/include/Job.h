@@ -11,13 +11,20 @@
 #include <cinttypes>
 #include <string>
 #include <set>
+#include <random>
+
+#include "ProgramSegment.h"
 
 class EventQueue;
 enum class DeviceType;
+enum class JobAction {
+	IO, End, NextSegment, PreviousSegment, None
+};
+
 class Job {
 
 public:
-	Job(const std::string& name, int64_t execution_time, int64_t size, int64_t nios, int64_t priority);
+	Job(const std::string& name, int64_t execution_time, int64_t size, int64_t nios, int64_t priority, const ProgramSegment& head);
 
 	std::string Name() const;
 	int64_t ExecutionTime() const;
@@ -31,8 +38,20 @@ public:
 	int64_t Priority() const;
 
 	void AddExecutedTime(int64_t time);
+	void DiscountSegment(int64_t time);
 	void FinishIO();
-	int64_t ReleaseCPUTime() const;
+	//Go to the next action
+	void AdvanceAction(bool already_reference = false, int64_t delay = 0);
+	std::pair<JobAction, int64_t> NextAction() const;
+
+
+	/* Methods of segment tree */
+	ProgramSegment& SegmentHead();
+	ProgramSegment* NextSegmentReference();
+	void NextSegmentReference(ProgramSegment* next);
+	void PrintSegmentTree();
+	ProgramSegment* ActiveSegment();
+	void ActiveSegment(ProgramSegment* active);
 
 	bool operator<(const Job& sec) const;
 
@@ -56,7 +75,13 @@ private:
 	//Number of IOs done
 	int64_t _done_ios;
 
+	ProgramSegment _segment_head;
+	ProgramSegment * _active_segment;
+	int64_t n_segs;
+	std::pair<JobAction, int64_t> _next_action;
+	ProgramSegment* _next_segment;
 
+	int64_t _discount = 0;
 
 };
 

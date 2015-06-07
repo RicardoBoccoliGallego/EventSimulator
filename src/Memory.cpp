@@ -7,40 +7,95 @@
 
 #include "include/Memory.h"
 #include "include/Debug.h"
+
+#include <algorithm>
+
 Memory::Memory(int64_t size)
-: _memory_size(size), _remaining_size(size)
 {
-	DEBUG("Memory Initialized: " << size << " bytes");
+	_segments_table[0] = MemorySegment(0, size, nullptr);
+	_free_segments.insert(&_segments_table[0]);
 }
 
-void Memory::Request(Job* job, EventQueue& events, int64_t& curr_time) {
-	if (_remaining_size >= job->Size()) {
-		_remaining_size -= job->Size();
-		_alocated_jobs.insert(job);
-		curr_time += OVERHEAD;
-		events.InsertEvent(Event(EventType::UseMemory, curr_time, job));
+void Memory::Request(Job* job, ProgramSegment* segment, EventQueue& events, int64_t& curr_time) {
+	//Try to find free segment
+	for (auto it  = _free_segments.begin(); it != _free_segments.end(); it++) {
+		//Get segment
+		MemorySegment& free = *(*it);
+		if (free.Size() >= segment->Size()) {
+			int64_t free_size = free.Size() - segment->Size();
+			//Insert element (size and segment loaded)
+			free.Size(segment->Size());
+			free.Segment(segment);
+			//Remove this element
+			_free_segments.erase(it);
+			//Insert free
+			if (free_size > 0) {
+				//Insert new free entry
+				_segments_table[free.Position() + segment->Size()] = MemorySegment(free.Position() + segment->Size(), free_size, nullptr);
+				_free_segments.insert(&_segments_table[free.Position() + segment->Size()]);
+			}
+			//curr_time += OVERHEAD;
+			//Set active segment and is loaded
+
+			job->NextSegmentReference(segment);
+
+			segment->Memory(&free);
+			//Loaded segment
+			events.InsertEvent(Event(EventType::SegmentLoaded, curr_time + OVERHEAD, job));
+			return;
+		}
 	}
-	else
-		_queue_list.push_back(job);
+	//Didn't find free segment, go to the queue
+	_queue_list.push_back(std::pair<Job*, ProgramSegment*>(job, segment));
+
 }
+
+void Memory::FreeSegment(MemorySegment* seg) {
+	seg->Segment(nullptr);
+
+
+	auto it = _segments_table.find(seg->Position());
+	//Go behind until it is free
+	while (it != _segments_table.begin() && it->second.Segment() == nullptr)
+		it--;
+	//Begining of merge
+	auto beginning = it;
+	//Go forward
+	while (it != _segments_table.end() && it->second.Segment() == nullptr) {
+		//Increase size
+		beginning->second.Size(beginning->second.Size() + it->second.Size());
+		//Remove existing free entry
+		_free_segments.erase(&it->second);
+		//Remove entry
+		if (it != beginning)
+			_segments_table.erase(it++);
+		else
+			it++;
+	}
+
+	//Add free entry
+	_free_segments.insert(&beginning->second);
+}
+
+
+void Memory::UnloadSegmentTree(ProgramSegment* seg) {
+	if (seg != nullptr) {
+		if (seg->Memory() != nullptr) {
+			FreeSegment(seg->Memory());
+		}
+		for (auto& it : seg->Children()) {
+			ProgramSegment* curr = &const_cast<ProgramSegment&>(it);
+			if (curr->Parent() != seg)
+				DEBUG("ERROR - CHILDEN PARENT DOESN'T MATCH");
+			UnloadSegmentTree(curr);
+		}
+	}
+}
+
 
 void Memory::Release(Job* job, EventQueue& events, int64_t& curr_time) {
-	if (_alocated_jobs.find(job) ==  _alocated_jobs.end())
-		return;
-	//Removes from allocated jobs and starts other jobs
-	_alocated_jobs.erase(job);
-	_remaining_size += job->Size();
-	while (!_queue_list.empty()) {
-		Job* start_job = _queue_list.front();
-		if (_remaining_size >=  start_job->Size()) {
-			_queue_list.pop_front();
-			_alocated_jobs.insert(start_job);
-			_remaining_size -= start_job->Size();
-			curr_time += OVERHEAD;
-			events.InsertEvent(Event(EventType::UseMemory, curr_time, start_job));
-		}
-		else
-			break;
-	}
+	//Release all jobs segments
+	UnloadSegmentTree(&job->SegmentHead());
 }
+
 

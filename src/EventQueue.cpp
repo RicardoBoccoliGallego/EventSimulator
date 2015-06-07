@@ -29,7 +29,7 @@ void EventQueue::InsertEvent(Event e) {
 	std::list<Event>::iterator walker = _current_position;
 	//Shouldn't happen
 	if (e.Time() < walker->Time()) {
-		DEBUG("InsertEvent: Unexpected Situation " << EventDescriptions[static_cast<int>(e.Type())]);
+		DEBUG("[" << walker->Time() << "]  InsertEvent of " << e.EventJob()->Name() << ": Tried to insert " << EventDescriptions[static_cast<int>(e.Type())] + " in time " << e.Time());
 		return;
 	}
 	while (e.Time() >= walker->Time() && walker != _events.end())
@@ -88,6 +88,13 @@ void EventQueue::CancelNextEvent(Job* job, EventType type) {
 	auto ev = NextEvent(job, type);
 	if (ev != _events.end())
 		_events.erase(ev);
+}
+
+Event* EventQueue::NextEventOf(Job* job, EventType type) {
+	auto ev = NextEvent(job, type);
+	if (ev != _events.end())
+		return &(*ev);
+	return nullptr;
 }
 
 std::list<Event>::iterator EventQueue::NextEvent(Job* job, EventType type) {

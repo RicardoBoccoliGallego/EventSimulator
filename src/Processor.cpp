@@ -17,11 +17,13 @@ Processor::Processor(int64_t max_programs, int64_t ncores) : _max_programs(max_p
 	last_timeslice = 0;
 }
 
-void Processor::Request(Job* job, EventQueue& events, int64_t& curr_time, int64_t run_time) {
-	if (_jobs_data.find(job) !=  _jobs_data.end())
+void Processor::Request(Job* job, EventQueue& events, int64_t& curr_time) {
+	if (_jobs_data.find(job) !=  _jobs_data.end()) {
+		DEBUG("Processor::Request of existing Job");
 		return;
+	}
 	//Record job data
-	_jobs_data[job] = std::tuple<int64_t, int64_t, int64_t>(curr_time, 0, run_time);
+	_jobs_data[job] = std::tuple<int64_t, int64_t>(curr_time, 0);
 	//Try to execute if it has CPU
 	if (_processing_jobs.size() < _ncores * _max_programs)
 		InsertJob(job, events, curr_time);
@@ -60,32 +62,43 @@ void Processor::Request(Job* job, EventQueue& events, int64_t& curr_time, int64_
 	}
 }
 
+Job* Processor::Running() {
+	if (_running_job == _processing_jobs.end())
+		return nullptr;
+	return const_cast<Job*>((*_running_job));
+}
+
 void Processor::EndTimeslice(EventQueue& events, int64_t& curr_time) {
+	//little fix
+	Event* next = events.NextEventOf(*_running_job, EventType::EndJob);
+	if (next != nullptr && next->Time() == curr_time)
+		return;
 	//Removes executing job
 	_to_run_job = _running_job;
 	if (_running_job != _processing_jobs.end()) {
-		StopJob(*_running_job, events, curr_time);
+		(*_running_job)->AddExecutedTime(curr_time - last_timeslice);
 	}
 	//Next job
 	NextJob(_to_run_job);
 	if (_to_run_job != _processing_jobs.end())
 		events.InsertEvent(Event(EventType::BeginTimeSlice, curr_time, *_to_run_job));
+	last_timeslice = curr_time;
 }
 
-void Processor::BeginTimeslice(EventQueue& events, int64_t& curr_time) {
+Job* Processor::BeginTimeslice(EventQueue& events, int64_t& curr_time) {
 	//Removes executing job
 	last_timeslice = curr_time;
 	_running_job = _to_run_job;
 	_to_run_job = _processing_jobs.end();
 	//Schedules release if it will happen in this timeslice
 	int64_t executed_time = std::get<1>(_jobs_data[*_running_job]);
-	int64_t total_time = std::get<2>(_jobs_data[*_running_job]);
-	if (executed_time + TIMESLICE >= total_time)
-		events.InsertEvent(Event(EventType::ReleaseCPU, curr_time + total_time - executed_time, *_running_job));
-	//Schedules next timeslice if it will not release CPU
-	else if (executed_time + TIMESLICE < total_time)
-		events.InsertEvent(Event(EventType::EndTimeSlice, curr_time + TIMESLICE, *_running_job));
-	DEBUG("Started Job " << ((*_running_job)->Name()));
+	//int64_t total_time = std::get<2>(_jobs_data[*_running_job]);
+	//if (executed_time + TIMESLICE >= total_time)
+	//	events.InsertEvent(Event(EventType::ReleaseCPU, curr_time + total_time - executed_time, *_running_job));
+	//Schedules next timeslice even if it will release CPU
+	//else if (executed_time + TIMESLICE < total_time)
+	events.InsertEvent(Event(EventType::EndTimeSlice, curr_time + TIMESLICE, *_running_job));
+	return *_running_job;
 }
 
 
@@ -94,22 +107,27 @@ void Processor::Release(Job* job, EventQueue& events, int64_t& curr_time) {
 		DEBUG("Processor::Release error : Job doesn't exist ");
 		return;
 	}
-	//Stop job if it is running
+
+
 	if (*_running_job == job) {
-		if (_processing_jobs.size() == 1)
-			StopJob(*_running_job, events, curr_time);
+		//Cancel timeslice
+		events.CancelNextEvent(job, EventType::EndTimeSlice);
+		if (_processing_jobs.size() == 1) {
+			events.CancelNextEvent(job, EventType::BeginTimeSlice);
+			(*_running_job)->AddExecutedTime(curr_time - last_timeslice);
+			_running_job = _processing_jobs.end();
+		}
 		else
 			EndTimeslice(events, curr_time);
 	}
 	//Didn't execute the time it should
-	if (std::get<1>(_jobs_data[job]) != std::get<2>(_jobs_data[job])) {
-		DEBUG("Processor::Release error " << __LINE__);
-		return;
-	}
+	//if (std::get<1>(_jobs_data[job]) != std::get<2>(_jobs_data[job])) {
+	//	DEBUG("Processor::Release error " << __LINE__);
+	//	return;
+	//}
 	//Remove from processing jobs
 	RemoveJob(job, events, curr_time);
-	//Removes data and update job
-	job->AddExecutedTime(std::get<1>(_jobs_data[job]));
+	//Removes data
 	_jobs_data.erase(job);
 
 	if (!_queue_list.empty()) {
@@ -132,9 +150,8 @@ void Processor::InsertJob(Job* job, EventQueue& events, int64_t& curr_time) {
 
 void Processor::StopJob(Job* job, EventQueue& events, int64_t& curr_time) {
 	if ((*_running_job) == job) {
-		std::tuple<int64_t, int64_t, int64_t>& last = _jobs_data[*_running_job];
+		std::tuple<int64_t, int64_t>& last = _jobs_data[*_running_job];
 		std::get<1>(last) += (curr_time - last_timeslice);
-		DEBUG("Stopped job " << ((*_running_job)->Name()));
 	}
 }
 

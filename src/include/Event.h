@@ -23,11 +23,13 @@ enum class EventType : int {
 	ReleaseCPU,
 	RequestIO,
 	ReleaseIO,
-	UseMemory,
+	SegmentLoaded,
 	UseCPU,
 	UseIO,
 	BeginTimeSlice,
-	EndTimeSlice
+	EndTimeSlice,
+	SegmentReference,
+	SegmentFault
 };
 
 enum class ActionType : int {
@@ -46,11 +48,13 @@ const std::string EventDescriptions[] = {
 		"ReleaseCPU",
 		"RequestIO",
 		"ReleaseIO",
-		"UseMemory",
+		"SegmentLoaded",
 		"UseCPU",
 		"UseIO",
 		"BeginTimeSlice",
-		"EndTimeSlice"
+		"EndTimeSlice",
+		"SegmentReference",
+		"SegmentFault",
 };
 
 const std::string EventRoutines[] = {
@@ -68,7 +72,9 @@ const std::string EventRoutines[] = {
 		"EventQueue::InsertEvent",
 		"EventQueue::InsertEvent",
 		"Processor::BeginTimeslice",
-		"Processor::EndTimeslice"
+		"Processor::EndTimeslice",
+		"Memory::Segment",
+		"Memory::Segment"
 };
 
 class Event {

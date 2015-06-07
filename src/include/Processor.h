@@ -22,7 +22,7 @@ public:
 	/**
 	 * Request CPU for job and assign new events
 	 */
-	void Request(Job* job, EventQueue& events, int64_t& curr_time, int64_t run_time);
+	void Request(Job* job, EventQueue& events, int64_t& curr_time);
 	/**
 	 * Release CPU for job and assign new events and returns the time the job was executing
 	 */
@@ -31,9 +31,11 @@ public:
 	/**
 	 * Changes the program running
 	 */
-	void BeginTimeslice(EventQueue& events, int64_t& curr_time);
+	Job* BeginTimeslice(EventQueue& events, int64_t& curr_time);
 	void EndTimeslice(EventQueue& events, int64_t& curr_time);
 
+	Job* Running();
+	const static int64_t TIMESLICE = 10 * 1000; /* 10 us of time slice */
 
 private:
 	/* Add and remove job from executing jobs */
@@ -47,9 +49,9 @@ private:
 	const static int64_t OVERHEAD = 0;
 	const static int64_t OVERHEAD_TIMESLICE = 0;
 	const static int64_t OVERHEAD_PRIORITY = 0;
-	const static int64_t TIMESLICE = 10 * 1000; /* 10 us of time slice */
-	//All jobs with the begining time, the executed time until the moment and how much time it wants to execute
-	std::map<Job*, std::tuple<int64_t, int64_t, int64_t>> _jobs_data;
+
+	//All jobs with the begining time, the executed time until the moment
+	std::map<Job*, std::tuple<int64_t, int64_t>> _jobs_data;
 	//Queue of waiting jobs
 	std::list<Job*> _queue_list;
 	//Jobs being executed

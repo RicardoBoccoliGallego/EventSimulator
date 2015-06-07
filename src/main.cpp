@@ -83,7 +83,7 @@ int main(int nargs, char * argv[]) {
 		if (current_event.Time() > current_time) {
 			current_time = current_event.Time();
 		}
-		DEBUG("Time " << current_time << " event: " << EventDescriptions[(int)current_event.Type()]);
+		DEBUG("[Events loop] Time " << current_time << " event: " << EventDescriptions[(int)current_event.Type()]);
 		switch (current_event.Type()) {
 			case EventType::BeginSimulation:
 				Job::ReadJobsFile(jobs_file, jobs, events);
@@ -98,22 +98,27 @@ int main(int nargs, char * argv[]) {
 				events.InsertEvent(Event(EventType::RequestMemory, current_time, current_job));
 				break;
 			case EventType::EndJob:
+				//End Job, release CPU, memory
+				if (cpu.Running() == current_job)
+					events.InsertEvent(Event(EventType::ReleaseCPU, current_time, current_job));
+				events.InsertEvent(Event(EventType::ReleaseMemory, current_time, current_job));
 				break;
 			case EventType::RequestMemory:
-				memory.Request(current_job, events, current_time);
+				//Loads first job segment in page
+				memory.Request(current_job, &current_job->SegmentHead(), events, current_time);
 				break;
-			case EventType::UseMemory:
+			case EventType::SegmentLoaded:
 				//Schedule CPU
 				events.InsertEvent(Event(EventType::RequestCPU, current_time, current_job));
 				break;
 			case EventType::ReleaseMemory:
 				//Job got out
 				memory.Release(current_job, events, current_time);
-				events.InsertEvent(Event(EventType::EndJob, current_time, current_job));
 				break;
 			case EventType::RequestCPU:
 				//Request CPU
-				cpu.Request(current_event.EventJob(), events, current_time, current_job->ReleaseCPUTime());
+				current_job->ActiveSegment(current_job->NextSegmentReference());
+				cpu.Request(current_event.EventJob(), events, current_time);
 				break;
 			case EventType::UseCPU:
 				//Schedule Release CPU
@@ -121,11 +126,6 @@ int main(int nargs, char * argv[]) {
 				break;
 			case EventType::ReleaseCPU: {
 				cpu.Release(current_job, events, current_time);
-				//Schedule end or I/O
-				if (current_job->MissingTime() == 0 && current_job->MissingIOs() == 0)
-					events.InsertEvent(Event(EventType::ReleaseMemory, current_time, current_job));
-				else
-					events.InsertEvent(Event(EventType::RequestIO, current_time, current_job));
 				break;
 			}
 			case EventType::RequestIO: {
@@ -147,17 +147,54 @@ int main(int nargs, char * argv[]) {
 					events.InsertEvent(Event(EventType::RequestCPU, current_time, current_job));
 				break;
 
-			case EventType::BeginTimeSlice:
-				cpu.BeginTimeslice(events, current_time);
+			case EventType::BeginTimeSlice: {
+				Job* run = cpu.BeginTimeslice(events, current_time);
+				//Schedule next interruption
+				if (run->NextAction().first == JobAction::None || run->NextAction().second <= 0) {
+					//Advance
+					run->AdvanceAction();
+				}
+				if (run->NextAction().second <= Processor::TIMESLICE) {
+					if (run->NextAction().first == JobAction::NextSegment
+							|| run->NextAction().first == JobAction::PreviousSegment)
+						events.InsertEvent(Event(EventType::SegmentReference, current_time + run->NextAction().second, run));
+					else if (run->NextAction().first == JobAction::End)
+						events.InsertEvent(Event(EventType::EndJob, current_time + run->NextAction().second, run));
+				}
 				break;
+			}
 			case EventType::EndTimeSlice:
 				cpu.EndTimeslice(events, current_time);
+				break;
+			case EventType::SegmentReference:
+
+				//it isn't loaded: segmentfault
+				if (current_job->NextSegmentReference()->Memory() == nullptr)
+					events.InsertEvent(Event(EventType::SegmentFault, current_time, current_job));
+				else {
+					int64_t slice_run = current_job->NextAction().second;
+					current_job->ActiveSegment(current_job->NextSegmentReference());
+					current_job->AdvanceAction(true, slice_run);
+					if (current_job->NextAction().second <= Processor::TIMESLICE - slice_run) {
+						if (current_job->NextAction().first == JobAction::NextSegment
+								|| current_job->NextAction().first == JobAction::PreviousSegment)
+							events.InsertEvent(Event(EventType::SegmentReference, current_time + current_job->NextAction().second, current_job));
+						else if (current_job->NextAction().first == JobAction::End)
+							events.InsertEvent(Event(EventType::EndJob, current_time + current_job->NextAction().second, current_job));
+					}
+				}
+				break;
+			case EventType::SegmentFault:
+				//stop processing if it is running
+				if (cpu.Running() == current_job)
+					events.InsertEvent(Event(EventType::ReleaseCPU, current_time, current_job));
+				//request memory
+				memory.Request(current_job, current_job->NextSegmentReference(), events, current_time);
 				break;
 		}
 
 		events.AdvanceQueue();
 	}
-
 	events.PrintEventQueue();
 
 

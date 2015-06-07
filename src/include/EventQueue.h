@@ -16,6 +16,7 @@ public:
 	EventQueue(int64_t simulation_start, int64_t simulation_end);
 	//Returns next event
 	Event& NextEvent();
+	Event* NextEventOf(Job* job, EventType type);
 	void AdvanceQueue();
 	//Insert event
 	void InsertEvent(Event e);

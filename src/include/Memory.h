@@ -10,11 +10,13 @@
 
 
 #include <set>
+#include <map>
 #include <list>
 #include <iostream>
 
 #include "Job.h"
 #include "EventQueue.h"
+#include "MemorySegment.h"
 
 /**
  * Class to represent a simple segmented memory
@@ -23,23 +25,26 @@ class Memory {
 public:
 	Memory(int64_t size);
 	/**
-	 * Requests memory. Return true if it was able to get
+	 * Request memory for job in memory
 	 */
-	void Request(Job* job, EventQueue& events, int64_t& curr_time);
+	void Request(Job* job, ProgramSegment* segment, EventQueue& events, int64_t& curr_time);
 
 	/**
-	 * Releases memory of job
-	 * returns if any new job was allocated
-	 * new_allocated_jobs contains the list of new allocated jobs
+	 * Release of job
 	 */
 	void Release(Job* job, EventQueue& events, int64_t& curr_time);
 
+
+
 private:
+	void UnloadSegmentTree(ProgramSegment* seg);
+	void FreeSegment(MemorySegment* seg);
 	const static int64_t OVERHEAD = 100;
-	const int64_t _memory_size;
-	std::list<Job*> _queue_list;
-	std::set<Job*> _alocated_jobs;
-	int64_t _remaining_size;
+	//Programs segments to be loaded
+	std::list<std::pair<Job*,ProgramSegment*>> _queue_list;
+	//Memory segments
+	std::map<int64_t, MemorySegment> _segments_table;
+	std::set<MemorySegment*> _free_segments;
 };
 
 

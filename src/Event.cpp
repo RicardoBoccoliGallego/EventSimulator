@@ -8,6 +8,7 @@
 
 #include "include/Event.h"
 #include "include/DevicePool.h"
+#include "include/Processor.h"
 #include "include/Debug.h"
 #include <sstream>
 
@@ -25,16 +26,16 @@ Event::Event(EventType event_type, int64_t real_time, Job* job)
 			_action = job->Name() + " is waiting to run";
 			break;
 		case EventType::UseCPU:
-			_action = job->Name() + " will use the CPU (" + SSTR(job->ExecutionTime() - job->MissingTime() + job->ReleaseCPUTime()) + "ns/" + SSTR(job->ExecutionTime()) + "ns)";
+			_action = job->Name() + " will use the CPU";
 			break;
 		case EventType::ReleaseCPU:
-			_action = job->Name() + " stop running";
+			_action = job->Name() + " stopped running (run for " + SSTR(job->ExecutionTime() - job->MissingTime() + job->NextAction().second) + "ns/" + SSTR(job->ExecutionTime()) + "ns)";
 			break;
 		case EventType::RequestMemory:
 			_action = job->Name() + " is waiting for memory";
 			break;
-		case EventType::UseMemory:
-			_action = job->Name() + " allocated";
+		case EventType::SegmentLoaded:
+			_action = job->Name() + " segment #" + SSTR(job->NextSegmentReference()->Number()) + " allocated";
 			break;
 		case EventType::ReleaseMemory:
 			_action = job->Name() + " deallocated";
@@ -49,11 +50,14 @@ Event::Event(EventType event_type, int64_t real_time, Job* job)
 			_action = job->Name() + " finished I/O";
 			break;
 		case EventType::BeginTimeSlice:
-			_action = job->Name() + " will run for its timeslice ";
+			_action = job->Name() + " will run for its timeslice for " + (Processor::TIMESLICE < job->NextAction().second ? SSTR(Processor::TIMESLICE) : SSTR(job->NextAction().second));
 			break;
 		case EventType::EndTimeSlice:
 			_action = job->Name() + " finished its timeslice ";
-		break;
+			break;
+		case EventType::SegmentReference:
+			_action = job->Name() + " referenced segment #" + SSTR(job->NextSegmentReference());
+			break;
 		default:
 			_action = "-";
 		break;
