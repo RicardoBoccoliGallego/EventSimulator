@@ -39,6 +39,11 @@ public:
 private:
 	void UnloadSegmentTree(ProgramSegment* seg);
 	void FreeSegment(MemorySegment* seg);
+	/**
+	 * Try to allocate. Returns true on success and false otherwise
+	 */
+	bool TryAllocate(Job* job, ProgramSegment* segment);
+	void PrintMemory();
 	const static int64_t OVERHEAD = 100;
 	//Programs segments to be loaded
 	std::list<std::pair<Job*,ProgramSegment*>> _queue_list;

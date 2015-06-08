@@ -18,17 +18,16 @@
 class EventQueue;
 enum class DeviceType;
 enum class JobAction {
-	IO, End, NextSegment, PreviousSegment, None
+	IO, SegmentReference, None
 };
 
 class Job {
 
 public:
-	Job(const std::string& name, int64_t execution_time, int64_t size, int64_t nios, int64_t priority, const ProgramSegment& head);
+	Job(const std::string& name, int64_t execution_time, int64_t nios, int64_t priority, const ProgramSegment& head);
 
 	std::string Name() const;
 	int64_t ExecutionTime() const;
-	int64_t Size() const;
 	int64_t NIOs() const;
 
 	int64_t MissingTime() const;
@@ -38,10 +37,9 @@ public:
 	int64_t Priority() const;
 
 	void AddExecutedTime(int64_t time);
-	void DiscountSegment(int64_t time);
 	void FinishIO();
 	//Go to the next action
-	void AdvanceAction(bool already_reference = false, int64_t delay = 0);
+	void AdvanceAction();
 	std::pair<JobAction, int64_t> NextAction() const;
 
 
@@ -63,7 +61,6 @@ private:
 	const int64_t _id;
 	const std::string _name;
 	const int64_t _execution_time;
-	const int64_t _size;
 	const int64_t _nios;
 	const int64_t _priority;
 
@@ -80,8 +77,6 @@ private:
 	int64_t n_segs;
 	std::pair<JobAction, int64_t> _next_action;
 	ProgramSegment* _next_segment;
-
-	int64_t _discount = 0;
 
 };
 

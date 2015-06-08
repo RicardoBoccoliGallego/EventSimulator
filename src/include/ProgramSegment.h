@@ -12,10 +12,10 @@
 #include <cinttypes>
 
 class MemorySegment;
-
+class Job;
 class ProgramSegment {
 public:
-	ProgramSegment(int64_t segment_number, int64_t size, int64_t max_execution, ProgramSegment* parent = nullptr);
+	ProgramSegment(int64_t segment_number, int64_t size, ProgramSegment* parent = nullptr);
 	//Adds child and returns poninter
 	ProgramSegment& AddChild(const ProgramSegment& child);
 	ProgramSegment* Parent();
@@ -24,9 +24,9 @@ public:
 	int64_t Number() const;
 	void Memory(MemorySegment* memory);
 	MemorySegment* Memory();
+	const Job* SegmentJob() const;
+	void SegmentJob(Job* job);
 
-	int64_t MaxExecution() const;
-	int64_t Executed() const;
 	void Executed(int64_t executed);
 
 	bool operator<(const ProgramSegment& other) const;
@@ -35,11 +35,10 @@ private:
 	MemorySegment* _memory;
 	const int64_t _segment_number;
 	const int64_t _size;
-	const int64_t _max_execution;
-	int64_t _executed;
 
 	ProgramSegment* _parent;
 	std::set<ProgramSegment> _children;
+	Job* _job;
 };
 
 

@@ -9,8 +9,10 @@
 #define INCLUDE_DEBUG_H_
 #include <iostream>
 #include <sstream>
+#include <string>
 
-#define SSTR( x ) ( std::ostringstream() << std::dec << x ).str()
+#define SSTR( x ) dynamic_cast< std::ostringstream & >( \
+        ( std::ostringstream() << std::dec << x ) ).str()
 
 
 #ifndef NDEBUG

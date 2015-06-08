@@ -25,7 +25,7 @@ void Processor::Request(Job* job, EventQueue& events, int64_t& curr_time) {
 		return;
 	}
 	//Record job data
-	_jobs_data[job] = std::tuple<int64_t, int64_t>(curr_time, 0);
+	_jobs_data[job] = curr_time;
 	//Try to execute if it has CPU
 	if (_processing_jobs.size() < _ncores * _max_programs)
 		InsertJob(job, events, curr_time);
@@ -92,13 +92,6 @@ Job* Processor::BeginTimeslice(EventQueue& events, int64_t& curr_time) {
 	last_timeslice = curr_time;
 	_running_job = _to_run_job;
 	_to_run_job = _processing_jobs.end();
-	//Schedules release if it will happen in this timeslice
-	int64_t executed_time = std::get<1>(_jobs_data[*_running_job]);
-	//int64_t total_time = std::get<2>(_jobs_data[*_running_job]);
-	//if (executed_time + TIMESLICE >= total_time)
-	//	events.InsertEvent(Event(EventType::ReleaseCPU, curr_time + total_time - executed_time, *_running_job));
-	//Schedules next timeslice even if it will release CPU
-	//else if (executed_time + TIMESLICE < total_time)
 	events.InsertEvent(Event(EventType::EndTimeSlice, curr_time + TIMESLICE, *_running_job));
 	return *_running_job;
 }
@@ -122,11 +115,6 @@ void Processor::Release(Job* job, EventQueue& events, int64_t& curr_time) {
 		else
 			EndTimeslice(events, curr_time);
 	}
-	//Didn't execute the time it should
-	//if (std::get<1>(_jobs_data[job]) != std::get<2>(_jobs_data[job])) {
-	//	DEBUG("Processor::Release error " << __LINE__);
-	//	return;
-	//}
 	//Remove from processing jobs
 	RemoveJob(job, events, curr_time);
 	//Removes data
@@ -147,13 +135,6 @@ void Processor::InsertJob(Job* job, EventQueue& events, int64_t& curr_time) {
 	if (_running_job == _processing_jobs.end() && _to_run_job == _processing_jobs.end()) {
 		_to_run_job = new_job;
 		events.InsertEvent(Event(EventType::BeginTimeSlice, curr_time, *_to_run_job));
-	}
-}
-
-void Processor::StopJob(Job* job, EventQueue& events, int64_t& curr_time) {
-	if ((*_running_job) == job) {
-		std::tuple<int64_t, int64_t>& last = _jobs_data[*_running_job];
-		std::get<1>(last) += (curr_time - last_timeslice);
 	}
 }
 

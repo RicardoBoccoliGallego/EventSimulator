@@ -19,7 +19,7 @@ enum class DeviceType : int {
 };
 
 const std::string DeviceNames[] = {
-		"Disk", "Printer", "Reader"
+		"Printer", "Reader"
 };
 
 class DevicePool {

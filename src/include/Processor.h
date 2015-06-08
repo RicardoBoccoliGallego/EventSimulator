@@ -41,8 +41,6 @@ private:
 	/* Add and remove job from executing jobs */
 	void InsertJob(Job* job, EventQueue& events, int64_t& curr_time);
 	void RemoveJob(Job* job, EventQueue& events, int64_t& curr_time);
-	/* Check if job is running and stop it */
-	void StopJob(Job* job, EventQueue& events, int64_t& curr_time);
 
 	void NextJob(std::list<Job*>::iterator& next);
 
@@ -51,7 +49,7 @@ private:
 	const static int64_t OVERHEAD_PRIORITY = 0;
 
 	//All jobs with the begining time, the executed time until the moment
-	std::map<Job*, std::tuple<int64_t, int64_t>> _jobs_data;
+	std::map<Job*, int64_t> _jobs_data;
 	//Queue of waiting jobs
 	std::list<Job*> _queue_list;
 	//Jobs being executed

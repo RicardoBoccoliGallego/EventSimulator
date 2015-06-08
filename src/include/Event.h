@@ -79,7 +79,7 @@ const std::string EventRoutines[] = {
 
 class Event {
 public:
-	Event(EventType event_type, int64_t real_time, Job* job);
+	Event(EventType event_type, int64_t real_time, Job* job, int64_t sum_time = 0);
 
 
 	int64_t Time() const;

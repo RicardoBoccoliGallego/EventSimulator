@@ -65,7 +65,7 @@ int main(int nargs, char * argv[]) {
 	DEBUG("Initializing simulator...");
 
 	//Computer components
-	Memory memory((int64_t) 10 * 1024 * 1024); //10MiB memory
+	Memory memory((int64_t) 10 * 1024); //10MiB memory
 	Processor cpu(3);
 	// Three device pools (disk, printer and reader)
 	DevicePool devices[] = {
@@ -99,9 +99,9 @@ int main(int nargs, char * argv[]) {
 				break;
 			case EventType::EndJob:
 				//End Job, release CPU, memory
-				if (cpu.Running() == current_job)
-					events.InsertEvent(Event(EventType::ReleaseCPU, current_time, current_job));
-				events.InsertEvent(Event(EventType::ReleaseMemory, current_time, current_job));
+			//	if (cpu.Running() == current_job)
+			//		events.InsertEvent(Event(EventType::ReleaseCPU, current_time, current_job));
+			//	events.InsertEvent(Event(EventType::ReleaseMemory, current_time, current_job));
 				break;
 			case EventType::RequestMemory:
 				//Loads first job segment in page
@@ -114,6 +114,7 @@ int main(int nargs, char * argv[]) {
 			case EventType::ReleaseMemory:
 				//Job got out
 				memory.Release(current_job, events, current_time);
+				events.InsertEvent(Event(EventType::EndJob, current_time, current_job));
 				break;
 			case EventType::RequestCPU:
 				//Request CPU
@@ -126,6 +127,8 @@ int main(int nargs, char * argv[]) {
 				break;
 			case EventType::ReleaseCPU: {
 				cpu.Release(current_job, events, current_time);
+				if (current_job->MissingTime() == 0)
+					events.InsertEvent(Event(EventType::ReleaseMemory, current_time, current_job));
 				break;
 			}
 			case EventType::RequestIO: {
@@ -154,12 +157,13 @@ int main(int nargs, char * argv[]) {
 					//Advance
 					run->AdvanceAction();
 				}
-				if (run->NextAction().second <= Processor::TIMESLICE) {
-					if (run->NextAction().first == JobAction::NextSegment
-							|| run->NextAction().first == JobAction::PreviousSegment)
+
+				if (run->NextAction().first != JobAction::None  && run->NextAction().second <= Processor::TIMESLICE) {
+					if (run->NextAction().first == JobAction::SegmentReference)
 						events.InsertEvent(Event(EventType::SegmentReference, current_time + run->NextAction().second, run));
-					else if (run->NextAction().first == JobAction::End)
-						events.InsertEvent(Event(EventType::EndJob, current_time + run->NextAction().second, run));
+				}
+				else if (run->MissingTime() < Processor::TIMESLICE) {
+					events.InsertEvent(Event(EventType::ReleaseCPU, current_time + run->MissingTime(), run, run->MissingTime()));
 				}
 				break;
 			}
@@ -172,16 +176,14 @@ int main(int nargs, char * argv[]) {
 				if (current_job->NextSegmentReference()->Memory() == nullptr)
 					events.InsertEvent(Event(EventType::SegmentFault, current_time, current_job));
 				else {
+					//it is loaded
 					int64_t slice_run = current_job->NextAction().second;
 					current_job->ActiveSegment(current_job->NextSegmentReference());
-					current_job->AdvanceAction(true, slice_run);
-					if (current_job->NextAction().second <= Processor::TIMESLICE - slice_run) {
-						if (current_job->NextAction().first == JobAction::NextSegment
-								|| current_job->NextAction().first == JobAction::PreviousSegment)
-							events.InsertEvent(Event(EventType::SegmentReference, current_time + current_job->NextAction().second, current_job));
-						else if (current_job->NextAction().first == JobAction::End)
-							events.InsertEvent(Event(EventType::EndJob, current_time + current_job->NextAction().second, current_job));
-					}
+					//current_job->AdvanceAction(true, slice_run);
+					//See if job will end in this timeslice
+					if (current_job->MissingTime() <= Processor::TIMESLICE - slice_run)
+						events.InsertEvent(Event(EventType::ReleaseCPU, current_time + current_job->MissingTime(), current_job, current_job->MissingTime()));
+
 				}
 				break;
 			case EventType::SegmentFault:

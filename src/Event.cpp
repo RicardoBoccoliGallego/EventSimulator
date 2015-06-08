@@ -12,7 +12,7 @@
 #include "include/Debug.h"
 #include <sstream>
 
-Event::Event(EventType event_type, int64_t real_time, Job* job)
+Event::Event(EventType event_type, int64_t real_time, Job* job, int64_t sum_time)
 	: _event_type(event_type), _real_time(real_time), _job(job)
 {
 	switch (event_type) {
@@ -20,7 +20,7 @@ Event::Event(EventType event_type, int64_t real_time, Job* job)
 			_action = job->Name() + " started";
 			break;
 		case EventType::EndJob:
-			_action = job->Name() + " finished";
+			_action = job->Name() + " finished " + SSTR(job->MissingTime());
 			break;
 		case EventType::RequestCPU:
 			_action = job->Name() + " is waiting to run";
@@ -29,7 +29,7 @@ Event::Event(EventType event_type, int64_t real_time, Job* job)
 			_action = job->Name() + " will use the CPU";
 			break;
 		case EventType::ReleaseCPU:
-			_action = job->Name() + " stopped running (run for " + SSTR(job->ExecutionTime() - job->MissingTime() + job->NextAction().second) + "ns/" + SSTR(job->ExecutionTime()) + "ns)";
+			_action = job->Name() + " stopped running (run for " + SSTR(job->ExecutionTime() - job->MissingTime() + job->NextAction().second + sum_time) + "ns/" + SSTR(job->ExecutionTime()) + "ns)";
 			break;
 		case EventType::RequestMemory:
 			_action = job->Name() + " is waiting for memory";
@@ -50,13 +50,16 @@ Event::Event(EventType event_type, int64_t real_time, Job* job)
 			_action = job->Name() + " finished I/O";
 			break;
 		case EventType::BeginTimeSlice:
-			_action = job->Name() + " will run for its timeslice for " + (Processor::TIMESLICE < job->NextAction().second ? SSTR(Processor::TIMESLICE) : SSTR(job->NextAction().second));
+			_action = job->Name() + " will run for its timeslice";
 			break;
 		case EventType::EndTimeSlice:
 			_action = job->Name() + " finished its timeslice ";
 			break;
 		case EventType::SegmentReference:
-			_action = job->Name() + " referenced segment #" + SSTR(job->NextSegmentReference());
+			_action = job->Name() + " referenced segment #" + SSTR(job->NextSegmentReference()->Number());
+			break;
+		case EventType::SegmentFault:
+			_action = job->Name() + " segment #" + SSTR(job->NextSegmentReference()->Number()) + " is not in memory";
 			break;
 		default:
 			_action = "-";

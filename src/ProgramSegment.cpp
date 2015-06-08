@@ -5,23 +5,32 @@
  *      Author: Ricardo
  */
 
+#include "include/Job.h"
 #include "include/ProgramSegment.h"
 #include "include/MemorySegment.h"
 
 #include "include/Debug.h"
 
-ProgramSegment::ProgramSegment(int64_t segment_number, int64_t size, int64_t max_execution, ProgramSegment* parent)
-: _segment_number(segment_number), _size(size), _max_execution(max_execution), _parent(parent)
+ProgramSegment::ProgramSegment(int64_t segment_number, int64_t size, ProgramSegment* parent)
+: _segment_number(segment_number), _size(size), _parent(parent)
 {
-	_executed = 0;
 	_memory = nullptr;
 
+}
+
+const Job* ProgramSegment::SegmentJob() const {
+	return _job;
+}
+
+void ProgramSegment::SegmentJob(Job* job) {
+	_job = job;
 }
 
 ProgramSegment& ProgramSegment::AddChild(const ProgramSegment& child) {
 	std::set<ProgramSegment>::iterator it = _children.insert(child).first;
 	ProgramSegment& ret = const_cast<ProgramSegment&>(*it);
 	ret._parent = this;
+	ret._job = _job;
 	return ret;
 }
 
@@ -40,18 +49,6 @@ int64_t ProgramSegment::Number() const {
 	return _segment_number;
 }
 
-int64_t ProgramSegment::MaxExecution() const {
-	return _max_execution;
-}
-
-int64_t ProgramSegment::Executed() const {
-	return _executed;
-}
-
-void ProgramSegment::Executed(int64_t executed) {
-	_executed = executed;
-}
-
 bool ProgramSegment::operator<(const ProgramSegment& other) const {
 	return _segment_number < other._segment_number;
 }
@@ -63,3 +60,5 @@ void ProgramSegment::Memory(MemorySegment* memory) {
 MemorySegment* ProgramSegment::Memory() {
 	return _memory;
 }
+
+
