@@ -36,31 +36,6 @@ void Processor::Request(Job* job, EventQueue& events, int64_t& curr_time) {
 		while (walk != _queue_list.end() && (*walk)->Priority() >= job->Priority())
 			walk++;
 		_queue_list.insert(walk, job);
-		//TODO: Remove less priority job
-		/*
-		//Try to find less priority job to remove
-		std::list<Job*>::iterator less_priority = _running_job;
-		for (std::list<Job*>::iterator it = _running_job; it != _processing_jobs.end(); NextJob(it)) {
-			if ((*it)->Priority() < (*less_priority)->Priority()) {
-				less_priority = it;
-			}
-		}
-		//Check if its priority is smaller
-		if ((*less_priority)->Priority() < job->Priority()) {
-			//Job to remove is running, need to simulate timeslice
-			if (_running_job == less_priority) {
-				Remove
-				NewTimeslice(events, curr_time);
-				if (_running_job->)
-				events.CancelNextEvent(job, EventType::ReleaseCPU);
-			}
-			//Removes job
-
-		}
-		else {
-
-		}*/
-
 	}
 }
 

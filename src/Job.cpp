@@ -19,19 +19,19 @@
 #include "include/Debug.h"
 #include "include/DevicePool.h"
 #include "include/Processor.h"
+#include "include/Disk.h"
 
 int64_t Job::n_jobs = 0;
-Job::Job(const std::string& name, int64_t execution_time, int64_t nios, int64_t priority, const ProgramSegment& head) :
-		_id(++n_jobs), _name(name), _execution_time(execution_time), _nios(nios), _priority(priority), _segment_head(head) {
+Job::Job(const std::string& name, int64_t execution_time, std::list<IO> ios, int64_t priority, const ProgramSegment& head) :
+		_id(++n_jobs), _name(name), _execution_time(execution_time), _ios(ios), _priority(priority), _segment_head(head) {
 
 	_executed_time = 0;
-	_inter_request_time = _execution_time / (_nios+1);
-	_done_ios = -1;
+	_next_io = _ios.begin();
 	//No segment running
 	_active_segment = nullptr;
+	_done_ios = 0;
 	srand(time(NULL));
-	//Calculates next I/O device
-	FinishIO();
+
 	_next_action = std::pair<JobAction, int64_t>(JobAction::None, 0);
 	_segment_head.SegmentJob(this);
 }
@@ -43,7 +43,11 @@ int64_t Job::ExecutionTime() const {
 	return _execution_time;
 }
 int64_t Job::NIOs() const {
-	return _nios;
+	return _ios.size();
+}
+
+int64_t Job::MissingIOs() const {
+	return _ios.size() - _done_ios;
 }
 
 int64_t Job::Priority() const {
@@ -54,42 +58,31 @@ int64_t Job::MissingTime() const {
 	return _execution_time - _executed_time;
 }
 
-int64_t Job::MissingIOs() const {
-	return _nios - _done_ios;
-}
-
-int64_t Job::DoneIOs() const {
-	return _done_ios;
-}
-
-DeviceType Job::NextIOType() const {
-	return _next_io;
+IO* Job::NextIO() const {
+	if (_next_io == _ios.end())
+		return nullptr;
+	return const_cast<IO*>(&(*_next_io));
 }
 
 void Job::AddExecutedTime(int64_t time) {
 	DEBUG("[Job::AddExecutedTime] " << Name() << " Executed time " << (_executed_time + time) << "/" << _execution_time);
 	_executed_time += time;
 	_next_action.second -= time;
-}
-
-void Job::FinishIO() {
-	_done_ios++;
-	int device = std::rand() % 10;
-	//50% disk
-	if (device < 5)
-		device = 0;
-	//30% printer
-	else if (device < 8)
-		device = 1;
-	//20%
-	else
-		device = 2;
-
-	_next_io = static_cast<DeviceType>(device);
+	for (IO& io : _ios)
+		io.time -= time;
 }
 
 std::pair<JobAction, int64_t> Job::NextAction() const {
+	//If the next action is I/O, do it
+	if (_next_io != _ios.end() && (_next_io->time < _next_action.second || _next_action.first == JobAction::None || _next_action.second <= 0)) {
+		return std::pair<JobAction, int64_t>(JobAction::IO, _next_io->time);
+	}
 	return _next_action;
+}
+
+void Job::AdvanceIO() {
+	_done_ios++;
+	_next_io++;
 }
 
 void Job::AdvanceAction() {
@@ -98,10 +91,8 @@ void Job::AdvanceAction() {
 	static std::mt19937 generator;
 	static std::normal_distribution<> d(Processor::TIMESLICE / 2, Processor::TIMESLICE/5);
 	int64_t reference_time = std::abs(d(generator));
+
 	//Memory reference
-
-	_next_action = std::pair<JobAction, int64_t>(JobAction::None, 0);
-
 	if (reference == 0 && reference_time < MissingTime()) {
 		if (_active_segment->Children().size() > 0) {
 			_next_action = std::pair<JobAction, int64_t>(JobAction::SegmentReference, reference_time);
@@ -158,13 +149,25 @@ void PrintSegment(ProgramSegment* seg, const std::string& ident) {
 	}
 }
 
+void PrintIOs(const std::string& name, const std::list<IO>& ios) {
+	DEBUG(name << " IOs list: ");
+	for (const IO& io : ios) {
+		if (io.type == DeviceType::Printer)
+			DEBUG(io.time <<  ": Printer");
+		else if (io.type == DeviceType::Reader)
+			DEBUG(io.time <<  ": Reader");
+		else
+			DEBUG(io.time << ": Disk - File " << io.file.Name() << " (" << io.n_tracks << " sectors)");
+	}
+}
+
 }
 void Job::PrintSegmentTree() {
 	DEBUG(Name() << " Segment Tree: ");
 	PrintSegment(&_segment_head, "");
 }
 
-void Job::ReadJobsFile(std::string filename, std::set<Job>& job_list, EventQueue& events) {
+void Job::ReadJobsFile(std::string filename, std::set<Job>& job_list, EventQueue& events, Disk& disk) {
 	std::ifstream file(filename);
 	DEBUG("Opening File " << filename << "...");
 
@@ -175,6 +178,7 @@ void Job::ReadJobsFile(std::string filename, std::set<Job>& job_list, EventQueue
 		int64_t nios;
 		int64_t arrive_time;
 		int64_t priority;
+		std::list<IO> ios;
 		while ( file >> name >> execution_time >> nios >> arrive_time >> priority) {
 			//Stack with segments. Each position contains the segment and number of children
 			std::list<std::pair<ProgramSegment&, int64_t>> total_segs;
@@ -182,7 +186,7 @@ void Job::ReadJobsFile(std::string filename, std::set<Job>& job_list, EventQueue
 			int64_t segs, n_seg, size;
 			file >> n_seg >> size >> segs;
 			ProgramSegment temp_head_seg(n_seg, size);
-			auto it = job_list.emplace(name, execution_time, nios, priority, temp_head_seg);
+			auto it = job_list.emplace(name, execution_time, ios, priority, temp_head_seg);
 			Job* job = const_cast<Job*>(&(*it.first));
 			job->n_segs = 1;
 			if (segs > 0)
@@ -205,10 +209,46 @@ void Job::ReadJobsFile(std::string filename, std::set<Job>& job_list, EventQueue
 				job->n_segs++;
 			}
 			job->PrintSegmentTree();
+
+			//Get job I/Os
+
+			int64_t inter_request = execution_time / (nios + 1);
+			int cont = 0;
+			while (cont < nios) {
+				IO io;
+				std::string device;
+
+				//Read the device
+				file >> device;
+				if (device == "printer")
+					io.type = DeviceType::Printer;
+				else if (device == "reader")
+					io.type = DeviceType::Reader;
+				//Disk I/O
+				else {
+					io.type = DeviceType::Disk;
+					std::string filename;
+					std::string read_write;
+					int64_t n_opers, size, is_private;
+					file >> filename >> read_write >> n_opers >> size >> is_private;
+					SystemFile sys_file(filename, job, size, is_private);
+					io.file = sys_file;
+					io.n_tracks = n_opers;
+					io.oper = read_write == "r" ? DiskOperation::Read : DiskOperation::Write;
+					disk.AddFile(sys_file);
+				}
+
+				io.time = inter_request * (++cont);
+				ios.push_back(io);
+			}
+			job->_ios = ios;
+			job->_next_io = job->_ios.begin();
+			PrintIOs(job->Name(), job->_ios);
 			//Insert event
 			events.InsertEvent(Event(EventType::BeginJob, arrive_time, const_cast<Job*>(&(*it.first))));
 
 		}
+
 	}
 	else
 		DEBUG("Couldn't open " << filename << "!");

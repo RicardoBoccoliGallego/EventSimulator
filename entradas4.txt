@@ -1,0 +1,10 @@
+Job1 581390000 2 3000  1
+	1 3000000 2
+		2 1000000 0
+		3 1000000 0
+disk test.txt r  5 1000 0 
+disk wfile.txt w 7 2000 1
+Job2 185957000 2 490085  1
+	1 2000000 0
+disk test2.txt r 3 4000 0
+printer

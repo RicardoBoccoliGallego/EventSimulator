@@ -16,6 +16,7 @@
 #include "include/Memory.h"
 #include "include/Processor.h"
 #include "include/DevicePool.h"
+#include "include/Disk.h"
 
 
 using namespace std;
@@ -65,14 +66,16 @@ int main(int nargs, char * argv[]) {
 	DEBUG("Initializing simulator...");
 
 	//Computer components
-	Memory memory((int64_t) 10 * 1024); //10MiB memory
+	Memory memory((int64_t) 10 * 1024 * 1024); //10MiB memory
 	Processor cpu(3);
 	// Three device pools (disk, printer and reader)
 	DevicePool devices[] = {
-			DevicePool(DeviceType::Disk, 15563*1000, 1),
+			DevicePool(DeviceType::Disk, 15563*1000, 1),//Declared but not used
 			DevicePool(DeviceType::Printer, 2*1000*1000*1000, 2),
 			DevicePool(DeviceType::Reader, 100*1000*1000, 2)
 	};
+	//Disk
+	Disk disk(15563*1000, 2*1000, 500 * 1024);
 
 	EventQueue events(start, end);
 	current_time = 0;
@@ -86,7 +89,7 @@ int main(int nargs, char * argv[]) {
 		DEBUG("[Events loop] Time " << current_time << " event: " << EventDescriptions[(int)current_event.Type()]);
 		switch (current_event.Type()) {
 			case EventType::BeginSimulation:
-				Job::ReadJobsFile(jobs_file, jobs, events);
+				Job::ReadJobsFile(jobs_file, jobs, events, disk);
 				current_time = start;
 				break;
 			case EventType::EndSimulation:
@@ -131,23 +134,39 @@ int main(int nargs, char * argv[]) {
 					events.InsertEvent(Event(EventType::ReleaseMemory, current_time, current_job));
 				break;
 			}
-			case EventType::RequestIO: {
-				//Chooses device and requests
-				devices[static_cast<int>(current_job->NextIOType())].Request(current_job, events, current_time);
+			case EventType::RequestFile:
+				//Stops processor
+				if (cpu.Running() == current_job)
+					events.InsertEvent(Event(EventType::ReleaseCPU, current_time, current_job));
+				//Request File
+				disk.Request(current_job, current_job->NextIO()->file.Name(), current_job->NextIO()->oper,  current_job->NextIO()->n_tracks, events, current_time);
 				break;
-			}
+			case EventType::UseFile:
+				//Schedule File End
+				events.InsertEvent(Event(EventType::ReleaseFile, current_time + disk.UseTime(current_job->NextIO()->n_tracks), current_job));
+				break;
+			case EventType::ReleaseFile:
+				disk.Release(current_job, events, current_time);
+				current_job->AdvanceIO();
+				//Schedule CPU
+				events.InsertEvent(Event(EventType::RequestCPU, current_time, current_job));
+				break;
+
+			case EventType::RequestIO:
+				//Stops processor
+				if (cpu.Running() == current_job)
+					events.InsertEvent(Event(EventType::ReleaseCPU, current_time, current_job));
+				devices[static_cast<int>(current_job->NextIO()->type)].Request(current_job, events, current_time);
+				break;
 			case EventType::UseIO:
 				//Schedule I/O end
-				events.InsertEvent(Event(EventType::ReleaseIO, current_time + devices[static_cast<int>(current_job->NextIOType())].IOTime(), current_job));
+				events.InsertEvent(Event(EventType::ReleaseIO, current_time + devices[static_cast<int>(current_job->NextIO()->type)].IOTime(), current_job));
 				break;
 			case EventType::ReleaseIO:
-
-				devices[static_cast<int>(current_job->NextIOType())].Release(current_job, events, current_time);
-				current_job->FinishIO();
-				if (current_job->MissingTime() == 0 && current_job->MissingIOs() == 0)
-					events.InsertEvent(Event(EventType::ReleaseMemory, current_time, current_job));
-				else
-					events.InsertEvent(Event(EventType::RequestCPU, current_time, current_job));
+				devices[static_cast<int>(current_job->NextIO()->type)].Release(current_job, events, current_time);
+				current_job->AdvanceIO();
+				//Schedule CPU
+				events.InsertEvent(Event(EventType::RequestCPU, current_time, current_job));
 				break;
 
 			case EventType::BeginTimeSlice: {
@@ -161,6 +180,12 @@ int main(int nargs, char * argv[]) {
 				if (run->NextAction().first != JobAction::None  && run->NextAction().second <= Processor::TIMESLICE) {
 					if (run->NextAction().first == JobAction::SegmentReference)
 						events.InsertEvent(Event(EventType::SegmentReference, current_time + run->NextAction().second, run));
+					if (run->NextAction().first == JobAction::IO) {
+						if (run->NextIO()->type == DeviceType::Disk)
+							events.InsertEvent(Event(EventType::RequestFile, current_time + run->NextAction().second, run));
+						else
+							events.InsertEvent(Event(EventType::RequestIO, current_time + run->NextAction().second, run));
+					}
 				}
 				else if (run->MissingTime() < Processor::TIMESLICE) {
 					events.InsertEvent(Event(EventType::ReleaseCPU, current_time + run->MissingTime(), run, run->MissingTime()));
@@ -179,7 +204,7 @@ int main(int nargs, char * argv[]) {
 					//it is loaded
 					int64_t slice_run = current_job->NextAction().second;
 					current_job->ActiveSegment(current_job->NextSegmentReference());
-					//current_job->AdvanceAction(true, slice_run);
+					//current_job->AdvanceAction(true);
 					//See if job will end in this timeslice
 					if (current_job->MissingTime() <= Processor::TIMESLICE - slice_run)
 						events.InsertEvent(Event(EventType::ReleaseCPU, current_time + current_job->MissingTime(), current_job, current_job->MissingTime()));

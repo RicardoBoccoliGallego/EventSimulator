@@ -29,7 +29,10 @@ enum class EventType : int {
 	BeginTimeSlice,
 	EndTimeSlice,
 	SegmentReference,
-	SegmentFault
+	SegmentFault,
+	RequestFile,
+	ReleaseFile,
+	UseFile
 };
 
 enum class ActionType : int {
@@ -55,6 +58,9 @@ const std::string EventDescriptions[] = {
 		"EndTimeSlice",
 		"SegmentReference",
 		"SegmentFault",
+		"RequestFile",
+		"ReleaseFile",
+		"UseFile"
 };
 
 const std::string EventRoutines[] = {
@@ -75,6 +81,12 @@ const std::string EventRoutines[] = {
 		"Processor::EndTimeslice",
 		"Memory::Segment",
 		"Memory::Segment"
+		"Disk::Request",
+		"Disk::Release",
+		"EventQueue::InsertEvent",
+		"Disk::Request",
+		"Disk::Release",
+		"EventQueue::InsertEvent"
 };
 
 class Event {

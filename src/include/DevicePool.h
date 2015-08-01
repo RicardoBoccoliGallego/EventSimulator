@@ -12,14 +12,8 @@
 
 #include "EventQueue.h"
 
-enum class DeviceType : int {
-	Disk = 0,
-	Printer,
-	Reader
-};
-
 const std::string DeviceNames[] = {
-		"Printer", "Reader"
+		"Disk", "Printer", "Reader"
 };
 
 class DevicePool {

@@ -44,7 +44,7 @@ Event::Event(EventType event_type, int64_t real_time, Job* job, int64_t sum_time
 			_action = job->Name() + " is waiting for I/O";
 			break;
 		case EventType::UseIO:
-			_action = job->Name() + " uses " + DeviceNames[static_cast<int>(job->NextIOType())] + " doing I/O operation (" + SSTR(job->NIOs() - job->MissingIOs() + 1) + "/" + SSTR(job->NIOs()) + ")";
+			_action = job->Name() + " uses " + DeviceNames[static_cast<int>(job->NextIO()->type)] + " doing I/O operation (" + SSTR(job->NIOs() - job->MissingIOs() + 1) + "/" + SSTR(job->NIOs()) + ")";
 			break;
 		case EventType::ReleaseIO:
 			_action = job->Name() + " finished I/O";
@@ -60,6 +60,15 @@ Event::Event(EventType event_type, int64_t real_time, Job* job, int64_t sum_time
 			break;
 		case EventType::SegmentFault:
 			_action = job->Name() + " segment #" + SSTR(job->NextSegmentReference()->Number()) + " is not in memory";
+			break;
+		case EventType::UseFile:
+			_action = job->Name() + " does " + (job->NextIO()->oper == DiskOperation::Read ? "read" : "write") + " of file " + job->NextIO()->file.Name() + " of " + SSTR(job->NextIO()->n_tracks) + " sectors";
+			break;
+		case EventType::ReleaseFile:
+			_action = job->Name() + " finished file access";
+			break;
+		case EventType::RequestFile:
+			_action = job->Name() + " is waiting for file access";
 			break;
 		default:
 			_action = "-";

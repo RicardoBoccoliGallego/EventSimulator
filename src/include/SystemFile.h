@@ -15,6 +15,7 @@ class Job;
 
 class SystemFile {
 public:
+	SystemFile() { }
 	SystemFile(std::string name, Job* owner, int64_t size, bool privat = true);
 	bool HasAccess(const Job* job) const;
 	std::string Name() const;
